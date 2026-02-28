@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const bookingSchema = new Schema(
+const bookingSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.ObjectId,
@@ -12,9 +12,9 @@ const bookingSchema = new Schema(
       ref: 'Dentist',
       required: [true, 'Dentist is required']
     },
-    data: {
+    date: {
       type: Date,
-      reuired: [true, 'Appointment date is required'],
+      required: [true, 'Appointment date is required'],
       validate: {
         validator: function(value) {
           return value > new Date();
@@ -57,9 +57,9 @@ const bookingSchema = new Schema(
   }
 );
 
-bookingSchema.index({ user: 1 }, { unique: true });
+bookingSchema.index({ user: 1 });
 
-bookingSchema.index({ dentist: 1, date: 1});
+bookingSchema.index({ dentist: 1, date: 1 });
 
 bookingSchema.index({ dentist: 1, date: 1, startTime: 1, endTime: 1}, { unique: true });
 
