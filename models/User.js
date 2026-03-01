@@ -35,7 +35,7 @@ const UserSchema = new mongoose.Schema(
       default: 'user'
     },
     booking: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',
       default: null
       // enforces ONE booking per user (max 1 booking)
