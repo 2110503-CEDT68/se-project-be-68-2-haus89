@@ -142,3 +142,43 @@ exports.getBooking = async (req, res, next) => {
         });
     }
 };
+
+// @desc    Update booking
+// @route   PUT /api/v1/bookings/:id
+// @access  Private
+exports.updateBooking = async (req, res, next) => {
+    try {
+        let booking = await Booking.findById(req.params.id);
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: `Booking not found with id of ${req.params.id}`
+            });
+        }
+
+        // Check if user owns this booking or is admin
+        if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to update this booking'
+            });
+        }
+
+        // Update booking
+        booking = await Booking.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+
+        res.status(200).json({
+            success: true,
+            data: booking
+        });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
