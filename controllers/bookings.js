@@ -182,3 +182,43 @@ exports.updateBooking = async (req, res, next) => {
         });
     }
 };
+
+// @desc    Delete booking
+// @route   DELETE /api/v1/bookings/:id
+// @access  Private
+exports.deleteBooking = async (req, res, next) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: `Booking not found with id of ${req.params.id}`
+            });
+        }
+
+        // Check if user owns this booking or is admin
+        if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this booking'
+            });
+        }
+
+        // Remove booking reference from user
+        await User.findByIdAndUpdate(booking.user, { booking: null });
+
+        // Delete booking
+        await Booking.deleteOne({ _id: req.params.id });
+
+        res.status(200).json({
+            success: true,
+            data: {}
+        });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
