@@ -222,3 +222,33 @@ exports.deleteBooking = async (req, res, next) => {
         });
     }
 };
+
+// @desc    Check dentist availability
+// @route   GET /api/v1/bookings/dentist/:id/availability
+// @access  Public
+exports.checkAvailability = async (req, res, next) => {
+    try {
+        const dentist = await Dentist.findById(req.params.id);
+
+        if (!dentist) {
+            return res.status(404).json({
+                success: false,
+                message: `Dentist not found with id of ${req.params.id}`
+            });
+        }
+
+        // Get available slots (not booked)
+        const availableSlots = dentist.availableSlots.filter(slot => !slot.isBooked);
+
+        res.status(200).json({
+            success: true,
+            count: availableSlots.length,
+            data: availableSlots
+        });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
