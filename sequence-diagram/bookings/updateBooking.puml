@@ -1,0 +1,75 @@
+@startuml Update Booking (PUT)
+
+header Dentist Booking System - Bookings
+footer Page %page% of %lastpage%
+title "Update Booking (PUT)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:bookings" as routerBookings
+participant "<<controllers>>\n:bookings" as controllersBookings
+participant "<<model>>\n:Booking" as modelBooking
+participant "<<model>>\n:Dentist" as modelDentist
+database "<<MongoDB>>\n:bookings" as BookingsDatabase
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+client->server ++:req.put('/api/v1/bookings/:id')
+server->routerBookings ++:app.use('/api/v1/bookings',bookings)
+routerBookings -> controllersBookings ++:updateBooking()
+controllersBookings->modelBooking ++:findById(req.params.id)
+modelBooking ->BookingsDatabase ++: find booking
+BookingsDatabase --> modelBooking --: booking
+controllersBookings <-- modelBooking --:booking
+
+alt booking not found
+    controllersBookings->client --:error {success: false, message: 'Booking not found'}
+else booking found
+    controllersBookings->controllersBookings:check authorization
+    alt not authorized
+        controllersBookings->client --:error {success: false, message: 'Not authorized'}
+    else authorized
+        controllersBookings->controllersBookings:check if slot changed
+        alt slot changed
+            controllersBookings->modelDentist ++:findById(newDentistId)
+            modelDentist ->DentistsDatabase ++: find new dentist
+            DentistsDatabase --> modelDentist --: newDentist
+            controllersBookings <-- modelDentist --:newDentist
+            
+            controllersBookings->controllersBookings:check new slot availability
+            alt new slot not available
+                controllersBookings->client --:error {success: false, message: 'The requested time slot is not available'}
+            else new slot available
+                controllersBookings->modelDentist ++:findById(booking.dentist)
+                modelDentist ->DentistsDatabase ++: find old dentist
+                DentistsDatabase --> modelDentist --: oldDentist
+                controllersBookings <-- modelDentist --:oldDentist
+                
+                controllersBookings->modelDentist ++:findOneAndUpdate(..., {$set: {'availableSlots.$.isBooked': false}})
+                modelDentist ->DentistsDatabase ++: release old slot
+                DentistsDatabase --> modelDentist --: updated
+                controllersBookings <-- modelDentist --:updated
+                
+                controllersBookings->modelDentist ++:findOneAndUpdate(..., {$set: {'availableSlots.$.isBooked': true}})
+                modelDentist ->DentistsDatabase ++: book new slot
+                DentistsDatabase --> modelDentist --: updated
+                controllersBookings <-- modelDentist --:updated
+                
+                controllersBookings->modelBooking ++:findByIdAndUpdate(req.params.id, req.body)
+                modelBooking ->BookingsDatabase ++: update booking
+                BookingsDatabase --> modelBooking --: booking
+                controllersBookings <-- modelBooking --:booking
+                
+                controllersBookings->client --:response {success: true, data: booking}
+            end
+        else slot not changed
+            controllersBookings->modelBooking ++:findByIdAndUpdate(req.params.id, req.body)
+            modelBooking ->BookingsDatabase ++: update booking
+            BookingsDatabase --> modelBooking --: booking
+            controllersBookings <-- modelBooking --:booking
+            
+            controllersBookings->client --:response {success: true, data: booking}
+        end
+    end
+end
+
+@enduml

@@ -1,0 +1,29 @@
+@startuml Check Dentist Availability (GET)
+
+header Dentist Booking System - Bookings
+footer Page %page% of %lastpage%
+title "Check Dentist Availability (GET)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:bookings" as routerBookings
+participant "<<controllers>>\n:bookings" as controllersBookings
+participant "<<model>>\n:Dentist" as modelDentist
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+client->server ++:req.get('/api/v1/bookings/dentist/:id/availability')
+server->routerBookings ++:app.use('/api/v1/bookings',bookings)
+routerBookings -> controllersBookings ++:checkAvailability()
+controllersBookings->modelDentist ++:findById(req.params.id)
+modelDentist ->DentistsDatabase ++: find dentist
+DentistsDatabase --> modelDentist --: dentist
+controllersBookings <-- modelDentist --:dentist
+
+alt dentist not found
+    controllersBookings->client --:error {success: false, message: 'Dentist not found'}
+else dentist found
+    controllersBookings->controllersBookings:filter availableSlots (isBooked: false)
+    controllersBookings->client --:response {success: true, count, data: availableSlots}
+end
+
+@enduml

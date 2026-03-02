@@ -1,0 +1,28 @@
+@startuml Update Dentist (PUT)
+
+header Dentist Booking System - Dentists
+footer Page %page% of %lastpage%
+title "Update Dentist (PUT) - Admin Only"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:dentists" as routerDentists
+participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:Dentist" as modelDentist
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+client->server ++:req.put('/api/v1/dentists/:id')
+server->routerDentists ++:app.use('/api/v1/dentists',dentists)
+routerDentists -> controllersDentists ++:updateDentist()
+controllersDentists->modelDentist ++:findByIdAndUpdate(req.params.id, req.body)
+modelDentist ->DentistsDatabase ++: update dentist
+DentistsDatabase --> modelDentist --: dentist
+controllersDentists <-- modelDentist --:dentist
+
+alt dentist not found
+    controllersDentists->client --:error {success: false, message: 'Dentist not found'}
+else dentist found
+    controllersDentists->client --:response {success: true, data: dentist}
+end
+
+@enduml

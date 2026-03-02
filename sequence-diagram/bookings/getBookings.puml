@@ -1,0 +1,23 @@
+@startuml Get All Bookings (GET)
+
+header Dentist Booking System - Bookings
+footer Page %page% of %lastpage%
+title "Get All Bookings (GET) - Admin Only"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:bookings" as routerBookings
+participant "<<controllers>>\n:bookings" as controllersBookings
+participant "<<model>>\n:Booking" as modelBooking
+database "<<MongoDB>>\n:bookings" as BookingsDatabase
+
+client->server ++:req.get('/api/v1/bookings')
+server->routerBookings ++:app.use('/api/v1/bookings',bookings)
+routerBookings -> controllersBookings ++:getBookings()
+controllersBookings->modelBooking ++:find().populate('dentist').populate('user')
+modelBooking ->BookingsDatabase ++: find all bookings
+BookingsDatabase --> modelBooking --: bookings
+controllersBookings <-- modelBooking --:bookings
+controllersBookings->client --:response {success: true, count, data: bookings}
+
+@enduml

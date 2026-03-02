@@ -1,0 +1,28 @@
+@startuml Get Single User (GET)
+
+header Dentist Booking System - Users
+footer Page %page% of %lastpage%
+title "Get Single User (GET) - Admin Only"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:users" as routerUsers
+participant "<<controllers>>\n:users" as controllersUsers
+participant "<<model>>\n:User" as modelUser
+database "<<MongoDB>>\n:users" as UsersDatabase
+
+client->server ++:req.get('/api/v1/users/:id')
+server->routerUsers ++:app.use('/api/v1/users',users)
+routerUsers -> controllersUsers ++:getUser()
+controllersUsers->modelUser ++:findById(req.params.id)
+modelUser ->UsersDatabase ++: find user
+UsersDatabase --> modelUser --: user
+controllersUsers <-- modelUser --:user
+
+alt user not found
+    controllersUsers->client --:error {success: false, message: 'User not found'}
+else user found
+    controllersUsers->client --:response {success: true, data: user}
+end
+
+@enduml

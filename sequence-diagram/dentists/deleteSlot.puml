@@ -1,0 +1,40 @@
+@startuml Delete Available Slot (DELETE)
+
+header Dentist Booking System - Dentists
+footer Page %page% of %lastpage%
+title "Delete Available Slot (DELETE) - Admin Only"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:dentists" as routerDentists
+participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:Dentist" as modelDentist
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+client->server ++:req.delete('/api/v1/dentists/:id/slots/:slotId')
+server->routerDentists ++:app.use('/api/v1/dentists',dentists)
+routerDentists -> controllersDentists ++:deleteSlot()
+controllersDentists->modelDentist ++:findById(req.params.id)
+modelDentist ->DentistsDatabase ++: find dentist
+DentistsDatabase --> modelDentist --: dentist
+controllersDentists <-- modelDentist --:dentist
+
+alt dentist not found
+    controllersDentists->client --:error {success: false, message: 'Dentist not found'}
+else dentist found
+    controllersDentists->controllersDentists:find slot by slotId
+    
+    alt slot not found
+        controllersDentists->client --:error {success: false, message: 'Slot not found'}
+    else slot found
+        controllersDentists->controllersDentists:remove slot from availableSlots
+        controllersDentists->modelDentist ++:save()
+        modelDentist ->DentistsDatabase ++: update dentist
+        DentistsDatabase --> modelDentist --: dentist
+        controllersDentists <-- modelDentist --:dentist
+        
+        controllersDentists->client --:response {success: true, data: {}}
+    end
+end
+
+@enduml

@@ -1,0 +1,29 @@
+@startuml Get All Dentists (GET)
+
+header Dentist Booking System - Dentists
+footer Page %page% of %lastpage%
+title "Get All Dentists (GET)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:dentists" as routerDentists
+participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:Dentist" as modelDentist
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+client->server ++:req.get('/api/v1/dentists')
+server->routerDentists ++:app.use('/api/v1/dentists',dentists)
+routerDentists -> controllersDentists ++:getDentists()
+controllersDentists->controllersDentists:parse query params (filter, select, sort, pagination)
+controllersDentists->modelDentist ++:countDocuments()
+modelDentist ->DentistsDatabase ++: count total
+DentistsDatabase --> modelDentist --: total
+controllersDentists <-- modelDentist --:total
+controllersDentists->modelDentist ++:find(query).select().sort().skip().limit()
+modelDentist ->DentistsDatabase ++: find dentists
+DentistsDatabase --> modelDentist --: dentists
+controllersDentists <-- modelDentist --:dentists
+controllersDentists->controllersDentists:calculate pagination
+controllersDentists->client --:response {success: true, count, pagination, data: dentists}
+
+@enduml

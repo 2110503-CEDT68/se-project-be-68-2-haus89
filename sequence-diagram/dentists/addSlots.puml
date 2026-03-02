@@ -1,0 +1,34 @@
+@startuml Add Available Slots (POST)
+
+header Dentist Booking System - Dentists
+footer Page %page% of %lastpage%
+title "Add Available Slots (POST) - Admin Only"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:dentists" as routerDentists
+participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:Dentist" as modelDentist
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+client->server ++:req.post('/api/v1/dentists/:id/slots')
+server->routerDentists ++:app.use('/api/v1/dentists',dentists)
+routerDentists -> controllersDentists ++:addSlots()
+controllersDentists->modelDentist ++:findById(req.params.id)
+modelDentist ->DentistsDatabase ++: find dentist
+DentistsDatabase --> modelDentist --: dentist
+controllersDentists <-- modelDentist --:dentist
+
+alt dentist not found
+    controllersDentists->client --:error {success: false, message: 'Dentist not found'}
+else dentist found
+    controllersDentists->controllersDentists:push new slots to availableSlots
+    controllersDentists->modelDentist ++:save()
+    modelDentist ->DentistsDatabase ++: update dentist
+    DentistsDatabase --> modelDentist --: dentist
+    controllersDentists <-- modelDentist --:dentist
+    
+    controllersDentists->client --:response {success: true, data: dentist}
+end
+
+@enduml
