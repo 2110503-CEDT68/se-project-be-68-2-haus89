@@ -196,6 +196,84 @@ exports.updateBooking = async (req, res, next) => {
             });
         }
 
+        // Check if dentist, date, or time is being changed
+        const isDentistChanged = req.body.dentist && req.body.dentist !== booking.dentist.toString();
+        const isDateChanged = req.body.date && new Date(req.body.date).getTime() !== new Date(booking.date).getTime();
+        const isTimeChanged = (req.body.startTime && req.body.startTime !== booking.startTime) || 
+                              (req.body.endTime && req.body.endTime !== booking.endTime);
+
+        if (isDentistChanged || isDateChanged || isTimeChanged) {
+            const newDentistId = req.body.dentist || booking.dentist;
+            const newDate = req.body.date || booking.date;
+            const newStartTime = req.body.startTime || booking.startTime;
+            const newEndTime = req.body.endTime || booking.endTime;
+
+            // Verify new dentist exists
+            const newDentist = await Dentist.findById(newDentistId);
+            if (!newDentist) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Dentist not found'
+                });
+            }
+
+            // Check if the new slot exists and is available
+            const newBookingDate = new Date(newDate);
+            newBookingDate.setHours(0, 0, 0, 0);
+            
+            const availableSlot = newDentist.availableSlots.find(slot => {
+                const slotDate = new Date(slot.date);
+                slotDate.setHours(0, 0, 0, 0);
+                return slotDate.getTime() === newBookingDate.getTime() &&
+                       slot.startTime === newStartTime &&
+                       slot.endTime === newEndTime &&
+                       !slot.isBooked;
+            });
+
+            if (!availableSlot) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'The requested time slot is not available'
+                });
+            }
+
+            // Release old slot (set isBooked to false)
+            const oldBookingDate = new Date(booking.date);
+            oldBookingDate.setHours(0, 0, 0, 0);
+            
+            const oldDentist = await Dentist.findById(booking.dentist);
+            const oldSlot = oldDentist.availableSlots.find(slot => {
+                const slotDate = new Date(slot.date);
+                slotDate.setHours(0, 0, 0, 0);
+                return slotDate.getTime() === oldBookingDate.getTime() &&
+                       slot.startTime === booking.startTime &&
+                       slot.endTime === booking.endTime;
+            });
+
+            if (oldSlot) {
+                await Dentist.findOneAndUpdate(
+                    {
+                        _id: booking.dentist,
+                        'availableSlots._id': oldSlot._id
+                    },
+                    {
+                        $set: { 'availableSlots.$.isBooked': false }
+                    }
+                );
+            }
+
+            // Book new slot (set isBooked to true)
+            await Dentist.findOneAndUpdate(
+                {
+                    _id: newDentistId,
+                    'availableSlots._id': availableSlot._id
+                },
+                {
+                    $set: { 'availableSlots.$.isBooked': true }
+                }
+            );
+        }
+
         // Update booking
         booking = await Booking.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
