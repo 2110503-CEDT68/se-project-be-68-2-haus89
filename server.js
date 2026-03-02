@@ -85,8 +85,8 @@ const authLimiter = rateLimit({
   },
 });
 
-app.use(generalLimiter);
-app.use("/api/v1/auth", authLimiter);
+//app.use(generalLimiter);
+//app.use("/api/v1/auth", authLimiter);
 
 //---------------------------------------------------------
 
