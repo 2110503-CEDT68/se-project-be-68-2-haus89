@@ -30,6 +30,26 @@ exports.createBooking = async (req, res, next) => {
             });
         }
 
+        // Check if the requested slot exists and is available
+        const bookingDate = new Date(req.body.date);
+        bookingDate.setHours(0, 0, 0, 0);
+        
+        const availableSlot = dentist.availableSlots.find(slot => {
+            const slotDate = new Date(slot.date);
+            slotDate.setHours(0, 0, 0, 0);
+            return slotDate.getTime() === bookingDate.getTime() &&
+                   slot.startTime === req.body.startTime &&
+                   slot.endTime === req.body.endTime &&
+                   !slot.isBooked;
+        });
+
+        if (!availableSlot) {
+            return res.status(400).json({
+                success: false,
+                message: 'The requested time slot is not available'
+            });
+        }
+
         // Create booking
         const booking = await Booking.create(req.body);
 
@@ -37,18 +57,10 @@ exports.createBooking = async (req, res, next) => {
         await User.findByIdAndUpdate(req.user.id, { booking: booking._id });
 
         // Update dentist's availableSlots to mark the slot as booked
-        const bookingDate = new Date(booking.date);
-        bookingDate.setHours(0, 0, 0, 0);
-        
         await Dentist.findOneAndUpdate(
             {
                 _id: req.body.dentist,
-                'availableSlots.date': {
-                    $gte: bookingDate,
-                    $lt: new Date(bookingDate.getTime() + 24 * 60 * 60 * 1000)
-                },
-                'availableSlots.startTime': booking.startTime,
-                'availableSlots.endTime': booking.endTime
+                'availableSlots._id': availableSlot._id
             },
             {
                 $set: { 'availableSlots.$.isBooked': true }
