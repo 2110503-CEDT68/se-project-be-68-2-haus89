@@ -1,51 +1,58 @@
 @startuml Delete Booking (DELETE)
 
-header Dentist Booking System - Bookings
+header RealHaus Sequence Diagram - Bookings Controller
 footer Page %page% of %lastpage%
-title "Delete Booking (DELETE)"
+title "Delete Booking (DELETE /api/v1/bookings/:id)"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:bookings" as routerBookings
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:bookings" as controllersBookings
-participant "<<model>>\n:Booking" as modelBooking
 participant "<<model>>\n:User" as modelUser
+participant "<<model>>\n:Booking" as modelBooking
 participant "<<model>>\n:Dentist" as modelDentist
-database "<<MongoDB>>\n:bookings" as BookingsDatabase
-database "<<MongoDB>>\n:users" as UsersDatabase
-database "<<MongoDB>>\n:dentists" as DentistsDatabase
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
+database "<<MongoDB>>\n:dentists" as DentistsDB
 
 client->server ++:req.delete('/api/v1/bookings/:id')
 server->routerBookings ++:app.use('/api/v1/bookings',bookings)
-routerBookings -> controllersBookings ++:deleteBooking()
-controllersBookings->modelBooking ++:findById(req.params.id)
-modelBooking ->BookingsDatabase ++: find booking
-BookingsDatabase --> modelBooking --: booking
-controllersBookings <-- modelBooking --:booking
+routerBookings -> middlewareAuth ++:protect()
 
-alt booking not found
-    controllersBookings->client --:error {success: false, message: 'Booking not found'}
-else booking found
-    controllersBookings->controllersBookings:check authorization
-    alt not authorized
-        controllersBookings->client --:error {success: false, message: 'Not authorized'}
-    else authorized
-        controllersBookings->modelUser ++:findByIdAndUpdate(booking.user, {booking: null})
-        modelUser ->UsersDatabase ++: remove booking reference
-        UsersDatabase --> modelUser --: updated
-        controllersBookings <-- modelUser --:updated
-        
-        controllersBookings->modelDentist ++:findOneAndUpdate(..., {$set: {'availableSlots.$.isBooked': false}})
-        modelDentist ->DentistsDatabase ++: release slot
-        DentistsDatabase --> modelDentist --: updated
-        controllersBookings <-- modelDentist --:updated
-        
-        controllersBookings->modelBooking ++:deleteOne({_id: req.params.id})
-        modelBooking ->BookingsDatabase ++: delete booking
-        BookingsDatabase --> modelBooking --: deleted
-        controllersBookings <-- modelBooking --:deleted
-        
-        controllersBookings->client --:response {success: true, data: {}}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> controllersBookings ++:next() -> deleteBooking()
+
+    controllersBookings->modelBooking ++:Booking.findById(req.params.id)
+    modelBooking->BookingsDB ++: findById()
+    BookingsDB-->modelBooking --: booking or null
+    controllersBookings<--modelBooking --:booking
+
+    alt Booking not found
+        controllersBookings->client --:res.status(404).json({success:false,\nmessage:'Booking not found with id of ...'})
+    else Booking found
+        alt Not owner and not admin
+            controllersBookings->client --:res.status(403).json({success:false,\nmessage:'Not authorized to delete this booking'})
+        else Owner or admin
+            controllersBookings->modelDentist ++:Dentist.findOneAndUpdate()\nRelease slot: isBooked=false
+            modelDentist->DentistsDB ++: update slot
+            DentistsDB-->modelDentist --: updated
+            controllersBookings<--modelDentist --:updated
+
+            controllersBookings->modelBooking ++:Booking.deleteOne({_id:id})
+            modelBooking->BookingsDB ++: deleteOne()
+            BookingsDB-->modelBooking --: deleted
+            controllersBookings<--modelBooking --:deleted
+
+            controllersBookings->client --:res.status(200).json({success:true,data:{}})
+        end
     end
 end
 

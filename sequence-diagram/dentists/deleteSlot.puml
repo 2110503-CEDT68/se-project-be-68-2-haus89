@@ -1,39 +1,70 @@
-@startuml Delete Available Slot (DELETE)
+@startuml Delete Slot (DELETE)
 
-header Dentist Booking System - Dentists
+header RealHaus Sequence Diagram - Dentists Controller
 footer Page %page% of %lastpage%
-title "Delete Available Slot (DELETE) - Admin Only"
+title "Delete Slot (DELETE /api/v1/dentists/:id/slots/:slotId) - Admin Only"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:dentists" as routerDentists
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:User" as modelUser
 participant "<<model>>\n:Dentist" as modelDentist
-database "<<MongoDB>>\n:dentists" as DentistsDatabase
+participant "<<model>>\n:Booking" as modelBooking
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:dentists" as DentistsDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
 
 client->server ++:req.delete('/api/v1/dentists/:id/slots/:slotId')
 server->routerDentists ++:app.use('/api/v1/dentists',dentists)
-routerDentists -> controllersDentists ++:deleteSlot()
-controllersDentists->modelDentist ++:findById(req.params.id)
-modelDentist ->DentistsDatabase ++: find dentist
-DentistsDatabase --> modelDentist --: dentist
-controllersDentists <-- modelDentist --:dentist
+routerDentists -> middlewareAuth ++:protect()
 
-alt dentist not found
-    controllersDentists->client --:error {success: false, message: 'Dentist not found'}
-else dentist found
-    controllersDentists->controllersDentists:find slot by slotId
-    
-    alt slot not found
-        controllersDentists->client --:error {success: false, message: 'Slot not found'}
-    else slot found
-        controllersDentists->controllersDentists:remove slot from availableSlots
-        controllersDentists->modelDentist ++:save()
-        modelDentist ->DentistsDatabase ++: update dentist
-        DentistsDatabase --> modelDentist --: dentist
-        controllersDentists <-- modelDentist --:dentist
-        
-        controllersDentists->client --:response {success: true, data: {}}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> middlewareAuth :authorize('admin')
+
+    alt User role is not admin
+        middlewareAuth->client --:res.status(403).json({success:false,\nmessage:'User role is not authorized to access this route'})
+    else User is admin
+        middlewareAuth -> controllersDentists ++:next() -> deleteSlot()
+
+        controllersDentists->modelDentist ++:Dentist.findById(req.params.id)
+        modelDentist->DentistsDB ++: findById()
+        DentistsDB-->modelDentist --: dentist or null
+        controllersDentists<--modelDentist --:dentist
+
+        alt Dentist not found
+            controllersDentists->client --:res.status(404).json({success:false,\nmessage:'Dentist not found with id of ...'})
+        else Dentist found
+            controllersDentists->controllersDentists :Find slot by slotId\nin availableSlots array
+
+            alt Slot not found
+                controllersDentists->client --:res.status(404).json({success:false,\nmessage:'Slot not found with id of ...'})
+            else Slot found
+                opt Slot is booked (isBooked = true)
+                    controllersDentists->modelBooking ++:Booking.deleteOne()\nmatch dentist, date, startTime, endTime
+                    modelBooking->BookingsDB ++: deleteOne()
+                    BookingsDB-->modelBooking --: deleted
+                    controllersDentists<--modelBooking --:deleted
+                end
+
+                controllersDentists->controllersDentists :Splice slot from\navailableSlots array
+
+                controllersDentists->modelDentist ++:dentist.save()
+                modelDentist->DentistsDB ++: save()
+                DentistsDB-->modelDentist --: saved
+                controllersDentists<--modelDentist --:dentist
+
+                controllersDentists->client --:res.status(200).json({success:true,data:{}})
+            end
+        end
     end
 end
 

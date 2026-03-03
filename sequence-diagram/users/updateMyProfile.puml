@@ -1,23 +1,39 @@
 @startuml Update My Profile (PUT)
 
-header Dentist Booking System - Users
+header RealHaus Sequence Diagram - Users Controller
 footer Page %page% of %lastpage%
-title "Update My Profile (PUT)"
+title "Update My Profile (PUT /api/v1/users/me/profile)"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:users" as routerUsers
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:users" as controllersUsers
 participant "<<model>>\n:User" as modelUser
-database "<<MongoDB>>\n:users" as UsersDatabase
+database "<<MongoDB>>\n:users" as UsersDB
 
 client->server ++:req.put('/api/v1/users/me/profile')
 server->routerUsers ++:app.use('/api/v1/users',users)
-routerUsers -> controllersUsers ++:updateMyProfile()
-controllersUsers->modelUser ++:findByIdAndUpdate(req.user.id, req.body)
-modelUser ->UsersDatabase ++: update user
-UsersDatabase --> modelUser --: user
-controllersUsers <-- modelUser --:user
-controllersUsers->client --:response {success: true, data: user}
+routerUsers -> middlewareAuth ++:protect()
+
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> controllersUsers ++:next() -> updateMyProfile()
+
+    controllersUsers->controllersUsers :delete req.body.booking\n(prevent updating virtual field)
+
+    controllersUsers->modelUser ++:User.findByIdAndUpdate(req.user.id,body,\n{new:true,runValidators:true})
+    modelUser->UsersDB ++: findByIdAndUpdate()
+    UsersDB-->modelUser --: updated user
+    controllersUsers<--modelUser --:user
+
+    controllersUsers->client --:res.status(200).json({success:true,data:user})
+end
 
 @enduml

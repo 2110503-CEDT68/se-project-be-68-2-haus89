@@ -1,28 +1,43 @@
 @startuml Get My Booking (GET)
 
-header Dentist Booking System - Bookings
+header RealHaus Sequence Diagram - Bookings Controller
 footer Page %page% of %lastpage%
-title "Get My Booking (GET)"
+title "Get My Booking (GET /api/v1/bookings/me)"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:bookings" as routerBookings
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:bookings" as controllersBookings
+participant "<<model>>\n:User" as modelUser
 participant "<<model>>\n:Booking" as modelBooking
-database "<<MongoDB>>\n:bookings" as BookingsDatabase
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
 
 client->server ++:req.get('/api/v1/bookings/me')
 server->routerBookings ++:app.use('/api/v1/bookings',bookings)
-routerBookings -> controllersBookings ++:getMyBooking()
-controllersBookings->modelBooking ++:findOne({user: req.user.id}).populate('dentist')
-modelBooking ->BookingsDatabase ++: find booking with dentist info
-BookingsDatabase --> modelBooking --: booking
-controllersBookings <-- modelBooking --:booking
+routerBookings -> middlewareAuth ++:protect()
 
-alt booking not found
-    controllersBookings->client --:error {success: false, message: 'No booking found'}
-else booking found
-    controllersBookings->client --:response {success: true, data: booking}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> controllersBookings ++:next() -> getMyBooking()
+
+    controllersBookings->modelBooking ++:Booking.findOne({user:req.user.id})\n.populate('dentist')
+    modelBooking->BookingsDB ++: findOne() + populate
+    BookingsDB-->modelBooking --: booking or null
+    controllersBookings<--modelBooking --:booking
+
+    alt No booking found
+        controllersBookings->client --:res.status(404).json({success:false,\nmessage:'No booking found'})
+    else Booking found
+        controllersBookings->client --:res.status(200).json({success:true,data:booking})
+    end
 end
 
 @enduml

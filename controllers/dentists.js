@@ -235,7 +235,7 @@ exports.deleteSlot = async (req, res, next) => {
             });
         }
 
-        // Find and remove the slot
+        // Find the slot to be deleted
         const slotIndex = dentist.availableSlots.findIndex(
             slot => slot._id.toString() === req.params.slotId
         );
@@ -247,6 +247,25 @@ exports.deleteSlot = async (req, res, next) => {
             });
         }
 
+        const slotToDelete = dentist.availableSlots[slotIndex];
+
+        // If the slot is booked, delete the associated booking
+        if (slotToDelete.isBooked) {
+            const slotDate = new Date(slotToDelete.date);
+            slotDate.setHours(0, 0, 0, 0);
+            
+            await Booking.deleteOne({
+                dentist: req.params.id,
+                date: {
+                    $gte: slotDate,
+                    $lt: new Date(slotDate.getTime() + 24 * 60 * 60 * 1000)
+                },
+                startTime: slotToDelete.startTime,
+                endTime: slotToDelete.endTime
+            });
+        }
+
+        // Remove the slot
         dentist.availableSlots.splice(slotIndex, 1);
         await dentist.save();
 

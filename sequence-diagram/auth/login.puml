@@ -1,8 +1,8 @@
-@startuml Login User (POST)
+@startuml Login (POST)
 
-header Dentist Booking System - Auth
+header RealHaus Sequence Diagram - Auth Controller
 footer Page %page% of %lastpage%
-title "Login User (POST)"
+title "Login (POST /api/v1/auth/login)"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
@@ -14,17 +14,29 @@ database "<<MongoDB>>\n:users" as UsersDatabase
 client->server ++:req.post('/api/v1/auth/login')
 server->routerAuth ++:app.use('/api/v1/auth',auth)
 routerAuth -> controllersAuth ++:login()
-controllersAuth->controllersAuth:validate email & password
-controllersAuth->modelUser ++:findOne({email}).select('+password')
-modelUser ->UsersDatabase ++: find user
-UsersDatabase --> modelUser --: user
-controllersAuth <-- modelUser --:user
-controllersAuth->controllersAuth:matchPassword(password)
-alt password matches
-    controllersAuth->controllersAuth:getSignedJwtToken()
-    controllersAuth->client --:response {success, token}
-else password doesn't match
-    controllersAuth->client --:error {success: false, msg: 'Invalid credentials'}
+
+alt Missing email or password
+    controllersAuth->client --:res.status(400).json({success:false,\nmsg:'Please provide an email and password'})
+else Has email and password
+    controllersAuth->modelUser ++:User.findOne({email}).select('+password')
+    modelUser ->UsersDatabase ++: find({email})
+    UsersDatabase --> modelUser --: user or null
+
+    alt User not found
+        controllersAuth <-- modelUser --:null
+        controllersAuth->client --:res.status(400).json({success:false,\nmsg:'Invalid credentials'})
+    else User found
+        controllersAuth <-- modelUser --:user
+        controllersAuth->modelUser ++:user.matchPassword(password)
+        modelUser-->controllersAuth --:isMatch
+
+        alt Password does not match
+            controllersAuth->client --:res.status(401).json({success:false,\nmsg:'Invalid credentials'})
+        else Password matches
+            controllersAuth->controllersAuth :user.getSignedJwtToken()
+            controllersAuth->client --:res.status(200).cookie('token',token).json({success:true,token})
+        end
+    end
 end
 
 @enduml

@@ -1,28 +1,73 @@
 @startuml Delete User (DELETE)
 
-header Dentist Booking System - Users
+header RealHaus Sequence Diagram - Users Controller
 footer Page %page% of %lastpage%
-title "Delete User (DELETE) - Admin Only"
+title "Delete User (DELETE /api/v1/users/:id) - Admin Only"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:users" as routerUsers
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:users" as controllersUsers
 participant "<<model>>\n:User" as modelUser
-database "<<MongoDB>>\n:users" as UsersDatabase
+participant "<<model>>\n:Booking" as modelBooking
+participant "<<model>>\n:Dentist" as modelDentist
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
+database "<<MongoDB>>\n:dentists" as DentistsDB
 
 client->server ++:req.delete('/api/v1/users/:id')
 server->routerUsers ++:app.use('/api/v1/users',users)
-routerUsers -> controllersUsers ++:deleteUser()
-controllersUsers->modelUser ++:findByIdAndDelete(req.params.id)
-modelUser ->UsersDatabase ++: delete user
-UsersDatabase --> modelUser --: user
-controllersUsers <-- modelUser --:user
+routerUsers -> middlewareAuth ++:protect()
 
-alt user not found
-    controllersUsers->client --:error {success: false, message: 'User not found'}
-else user found
-    controllersUsers->client --:response {success: true, data: {}}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> middlewareAuth :authorize('admin')
+
+    alt User role is not admin
+        middlewareAuth->client --:res.status(403).json({success:false,\nmessage:'User role is not authorized to access this route'})
+    else User is admin
+        middlewareAuth -> controllersUsers ++:next() -> deleteUser()
+
+        controllersUsers->modelUser ++:User.findById(req.params.id)
+        modelUser->UsersDB ++: findById()
+        UsersDB-->modelUser --: user or null
+        controllersUsers<--modelUser --:user
+
+        alt User not found
+            controllersUsers->client --:res.status(404).json({success:false,\nmessage:'User not found with id of ...'})
+        else User found
+            controllersUsers->modelBooking ++:Booking.findOne({user:id})
+            modelBooking->BookingsDB ++: findOne()
+            BookingsDB-->modelBooking --: booking or null
+            controllersUsers<--modelBooking --:booking
+
+            opt User has a booking
+                controllersUsers->modelDentist ++:Dentist.findOneAndUpdate()\nRelease slot: isBooked=false
+                modelDentist->DentistsDB ++: update slot
+                DentistsDB-->modelDentist --: updated
+                controllersUsers<--modelDentist --:updated
+
+                controllersUsers->modelBooking ++:Booking.deleteOne({_id:booking._id})
+                modelBooking->BookingsDB ++: deleteOne()
+                BookingsDB-->modelBooking --: deleted
+                controllersUsers<--modelBooking --:deleted
+            end
+
+            controllersUsers->modelUser ++:User.findByIdAndDelete(id)
+            modelUser->UsersDB ++: findByIdAndDelete()
+            UsersDB-->modelUser --: deleted
+            controllersUsers<--modelUser --:deleted
+
+            controllersUsers->client --:res.status(200).json({success:true,data:{}})
+        end
+    end
 end
 
 @enduml

@@ -1,40 +1,61 @@
 @startuml Delete Dentist (DELETE)
 
-header Dentist Booking System - Dentists
+header RealHaus Sequence Diagram - Dentists Controller
 footer Page %page% of %lastpage%
-title "Delete Dentist (DELETE) - Admin Only"
+title "Delete Dentist (DELETE /api/v1/dentists/:id) - Admin Only"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:dentists" as routerDentists
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:User" as modelUser
 participant "<<model>>\n:Dentist" as modelDentist
 participant "<<model>>\n:Booking" as modelBooking
-database "<<MongoDB>>\n:dentists" as DentistsDatabase
-database "<<MongoDB>>\n:bookings" as BookingsDatabase
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:dentists" as DentistsDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
 
 client->server ++:req.delete('/api/v1/dentists/:id')
 server->routerDentists ++:app.use('/api/v1/dentists',dentists)
-routerDentists -> controllersDentists ++:deleteDentist()
-controllersDentists->modelDentist ++:findById(req.params.id)
-modelDentist ->DentistsDatabase ++: find dentist
-DentistsDatabase --> modelDentist --: dentist
-controllersDentists <-- modelDentist --:dentist
+routerDentists -> middlewareAuth ++:protect()
 
-alt dentist not found
-    controllersDentists->client --:error {success: false, message: 'Dentist not found'}
-else dentist found
-    controllersDentists->modelBooking ++:deleteMany({dentist: req.params.id})
-    modelBooking ->BookingsDatabase ++: delete all bookings
-    BookingsDatabase --> modelBooking --: deleted
-    controllersDentists <-- modelBooking --:deleted
-    
-    controllersDentists->modelDentist ++:deleteOne({_id: req.params.id})
-    modelDentist ->DentistsDatabase ++: delete dentist
-    DentistsDatabase --> modelDentist --: deleted
-    controllersDentists <-- modelDentist --:deleted
-    
-    controllersDentists->client --:response {success: true, data: {}}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> middlewareAuth :authorize('admin')
+
+    alt User role is not admin
+        middlewareAuth->client --:res.status(403).json({success:false,\nmessage:'User role is not authorized to access this route'})
+    else User is admin
+        middlewareAuth -> controllersDentists ++:next() -> deleteDentist()
+
+        controllersDentists->modelDentist ++:Dentist.findById(req.params.id)
+        modelDentist->DentistsDB ++: findById()
+        DentistsDB-->modelDentist --: dentist or null
+        controllersDentists<--modelDentist --:dentist
+
+        alt Dentist not found
+            controllersDentists->client --:res.status(404).json({success:false,\nmessage:'Dentist not found with id of ...'})
+        else Dentist found
+            controllersDentists->modelBooking ++:Booking.deleteMany({dentist:id})
+            modelBooking->BookingsDB ++: deleteMany()
+            BookingsDB-->modelBooking --: deleted
+            controllersDentists<--modelBooking --:deleted
+
+            controllersDentists->modelDentist ++:Dentist.deleteOne({_id:id})
+            modelDentist->DentistsDB ++: deleteOne()
+            DentistsDB-->modelDentist --: deleted
+            controllersDentists<--modelDentist --:deleted
+
+            controllersDentists->client --:res.status(200).json({success:true,data:{}})
+        end
+    end
 end
 
 @enduml

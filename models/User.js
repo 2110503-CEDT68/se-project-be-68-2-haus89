@@ -40,12 +40,6 @@ const UserSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
-    booking: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Booking",
-      default: null,
-      // enforces ONE booking per user (max 1 booking)
-    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     createdAt: {
@@ -81,5 +75,13 @@ UserSchema.methods.getSignedJwtToken = function () {
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Virtual populate for booking
+UserSchema.virtual("booking", {
+  ref: "Booking",
+  localField: "_id",
+  foreignField: "user",
+  justOne: true,
+});
 
 module.exports = mongoose.model("User", UserSchema);

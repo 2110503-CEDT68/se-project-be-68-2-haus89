@@ -1,23 +1,45 @@
 @startuml Get All Bookings (GET)
 
-header Dentist Booking System - Bookings
+header RealHaus Sequence Diagram - Bookings Controller
 footer Page %page% of %lastpage%
-title "Get All Bookings (GET) - Admin Only"
+title "Get All Bookings (GET /api/v1/bookings) - Admin Only"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:bookings" as routerBookings
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:bookings" as controllersBookings
+participant "<<model>>\n:User" as modelUser
 participant "<<model>>\n:Booking" as modelBooking
-database "<<MongoDB>>\n:bookings" as BookingsDatabase
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
 
 client->server ++:req.get('/api/v1/bookings')
 server->routerBookings ++:app.use('/api/v1/bookings',bookings)
-routerBookings -> controllersBookings ++:getBookings()
-controllersBookings->modelBooking ++:find().populate('dentist').populate('user')
-modelBooking ->BookingsDatabase ++: find all bookings
-BookingsDatabase --> modelBooking --: bookings
-controllersBookings <-- modelBooking --:bookings
-controllersBookings->client --:response {success: true, count, data: bookings}
+routerBookings -> middlewareAuth ++:protect()
+
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> middlewareAuth :authorize('admin')
+
+    alt User role is not admin
+        middlewareAuth->client --:res.status(403).json({success:false,\nmessage:'User role is not authorized to access this route'})
+    else User is admin
+        middlewareAuth -> controllersBookings ++:next() -> getBookings()
+
+        controllersBookings->modelBooking ++:Booking.find()\n.populate('dentist').populate('user')
+        modelBooking->BookingsDB ++: find() + populate
+        BookingsDB-->modelBooking --: bookings with dentist & user
+        controllersBookings<--modelBooking --:bookings
+
+        controllersBookings->client --:res.status(200).json({success:true,count,data:bookings})
+    end
+end
 
 @enduml

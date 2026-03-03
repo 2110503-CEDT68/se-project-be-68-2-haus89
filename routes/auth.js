@@ -10,8 +10,8 @@ router.post("/register", register);
 // @route   POST /api/v1/auth/login
 router.post("/login", login);
 
-// @route   POST /api/v1/auth/logout
-router.post("/logout", protect, logout);
+// @route   GET /api/v1/auth/logout
+router.get("/logout", protect, logout);
 
 // @route   GET /api/v1/auth/me
 router.get("/me", protect, getMe);

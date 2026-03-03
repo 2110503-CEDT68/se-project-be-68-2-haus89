@@ -1,23 +1,43 @@
 @startuml Get All Users (GET)
 
-header Dentist Booking System - Users
+header RealHaus Sequence Diagram - Users Controller
 footer Page %page% of %lastpage%
-title "Get All Users (GET) - Admin Only"
+title "Get All Users (GET /api/v1/users) - Admin Only"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:users" as routerUsers
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:users" as controllersUsers
 participant "<<model>>\n:User" as modelUser
-database "<<MongoDB>>\n:users" as UsersDatabase
+database "<<MongoDB>>\n:users" as UsersDB
 
 client->server ++:req.get('/api/v1/users')
 server->routerUsers ++:app.use('/api/v1/users',users)
-routerUsers -> controllersUsers ++:getUsers()
-controllersUsers->modelUser ++:find()
-modelUser ->UsersDatabase ++: find all users
-UsersDatabase --> modelUser --: users
-controllersUsers <-- modelUser --:users
-controllersUsers->client --:response {success: true, count, data: users}
+routerUsers -> middlewareAuth ++:protect()
+
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> middlewareAuth :authorize('admin')
+
+    alt User role is not admin
+        middlewareAuth->client --:res.status(403).json({success:false,\nmessage:'User role is not authorized to access this route'})
+    else User is admin
+        middlewareAuth -> controllersUsers ++:next() -> getUsers()
+
+        controllersUsers->modelUser ++:User.find().populate('booking')
+        modelUser->UsersDB ++: find() + populate
+        UsersDB-->modelUser --: users with bookings
+        controllersUsers<--modelUser --:users
+
+        controllersUsers->client --:res.status(200).json({success:true,count,data:users})
+    end
+end
 
 @enduml

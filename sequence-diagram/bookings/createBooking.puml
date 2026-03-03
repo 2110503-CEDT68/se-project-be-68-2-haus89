@@ -1,60 +1,68 @@
 @startuml Create Booking (POST)
 
-header Dentist Booking System - Bookings
+header RealHaus Sequence Diagram - Bookings Controller
 footer Page %page% of %lastpage%
-title "Create Booking (POST)"
+title "Create Booking (POST /api/v1/bookings)"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:bookings" as routerBookings
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:bookings" as controllersBookings
-participant "<<model>>\n:Booking" as modelBooking
 participant "<<model>>\n:User" as modelUser
+participant "<<model>>\n:Booking" as modelBooking
 participant "<<model>>\n:Dentist" as modelDentist
-database "<<MongoDB>>\n:bookings" as BookingsDatabase
-database "<<MongoDB>>\n:users" as UsersDatabase
-database "<<MongoDB>>\n:dentists" as DentistsDatabase
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
+database "<<MongoDB>>\n:dentists" as DentistsDB
 
 client->server ++:req.post('/api/v1/bookings')
 server->routerBookings ++:app.use('/api/v1/bookings',bookings)
-routerBookings -> controllersBookings ++:createBooking()
-controllersBookings->modelBooking ++:findOne({user: req.user.id})
-modelBooking ->BookingsDatabase ++: check existing booking
-BookingsDatabase --> modelBooking --: existingBooking
-controllersBookings <-- modelBooking --:existingBooking
+routerBookings -> middlewareAuth ++:protect()
 
-alt user already has booking
-    controllersBookings->client --:error {success: false, message: 'You already have a booking'}
-else no existing booking
-    controllersBookings->modelDentist ++:findById(req.body.dentist)
-    modelDentist ->DentistsDatabase ++: find dentist
-    DentistsDatabase --> modelDentist --: dentist
-    controllersBookings <-- modelDentist --:dentist
-    
-    alt dentist not found
-        controllersBookings->client --:error {success: false, message: 'Dentist not found'}
-    else dentist found
-        controllersBookings->controllersBookings:check slot availability
-        
-        alt slot not available
-            controllersBookings->client --:error {success: false, message: 'The requested time slot is not available'}
-        else slot available
-            controllersBookings->modelBooking ++:create(req.body)
-            modelBooking ->BookingsDatabase ++: BookingSchema
-            BookingsDatabase --> modelBooking --: booking
-            controllersBookings <-- modelBooking --:booking
-            
-            controllersBookings->modelUser ++:findByIdAndUpdate(req.user.id, {booking: booking._id})
-            modelUser ->UsersDatabase ++: update user
-            UsersDatabase --> modelUser --: updated
-            controllersBookings <-- modelUser --:updated
-            
-            controllersBookings->modelDentist ++:findOneAndUpdate(..., {$set: {'availableSlots.$.isBooked': true}})
-            modelDentist ->DentistsDatabase ++: update slot
-            DentistsDatabase --> modelDentist --: updated
-            controllersBookings <-- modelDentist --:updated
-            
-            controllersBookings->client --:response {success: true, data: booking}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> controllersBookings ++:next() -> createBooking()
+
+    controllersBookings->modelBooking ++:Booking.findOne({user:req.user.id})
+    modelBooking->BookingsDB ++: findOne()
+    BookingsDB-->modelBooking --: existing booking or null
+    controllersBookings<--modelBooking --:existingBooking
+
+    alt User already has a booking
+        controllersBookings->client --:res.status(400).json({success:false,\nmessage:'You already have a booking...'})
+    else No existing booking
+        controllersBookings->modelDentist ++:Dentist.findById(req.body.dentist)
+        modelDentist->DentistsDB ++: findById()
+        DentistsDB-->modelDentist --: dentist or null
+        controllersBookings<--modelDentist --:dentist
+
+        alt Dentist not found
+            controllersBookings->client --:res.status(404).json({success:false,\nmessage:'Dentist not found'})
+        else Dentist found
+            controllersBookings->controllersBookings :Check availableSlots\n(date, startTime, endTime, !isBooked)
+
+            alt Slot not available
+                controllersBookings->client --:res.status(400).json({success:false,\nmessage:'The requested time slot is not available'})
+            else Slot available
+                controllersBookings->modelBooking ++:Booking.create(req.body)
+                modelBooking->BookingsDB ++: BookingSchema
+                BookingsDB-->modelBooking --: booking
+                controllersBookings<--modelBooking --:booking
+
+                controllersBookings->modelDentist ++:Dentist.findOneAndUpdate()\nset isBooked=true
+                modelDentist->DentistsDB ++: update slot
+                DentistsDB-->modelDentist --: updated
+                controllersBookings<--modelDentist --:updated
+
+                controllersBookings->client --:res.status(201).json({success:true,data:booking})
+            end
         end
     end
 end

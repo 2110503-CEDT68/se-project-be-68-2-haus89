@@ -1,73 +1,81 @@
 @startuml Update Booking (PUT)
 
-header Dentist Booking System - Bookings
+header RealHaus Sequence Diagram - Bookings Controller
 footer Page %page% of %lastpage%
-title "Update Booking (PUT)"
+title "Update Booking (PUT /api/v1/bookings/:id)"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:bookings" as routerBookings
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:bookings" as controllersBookings
+participant "<<model>>\n:User" as modelUser
 participant "<<model>>\n:Booking" as modelBooking
 participant "<<model>>\n:Dentist" as modelDentist
-database "<<MongoDB>>\n:bookings" as BookingsDatabase
-database "<<MongoDB>>\n:dentists" as DentistsDatabase
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:bookings" as BookingsDB
+database "<<MongoDB>>\n:dentists" as DentistsDB
 
 client->server ++:req.put('/api/v1/bookings/:id')
 server->routerBookings ++:app.use('/api/v1/bookings',bookings)
-routerBookings -> controllersBookings ++:updateBooking()
-controllersBookings->modelBooking ++:findById(req.params.id)
-modelBooking ->BookingsDatabase ++: find booking
-BookingsDatabase --> modelBooking --: booking
-controllersBookings <-- modelBooking --:booking
+routerBookings -> middlewareAuth ++:protect()
 
-alt booking not found
-    controllersBookings->client --:error {success: false, message: 'Booking not found'}
-else booking found
-    controllersBookings->controllersBookings:check authorization
-    alt not authorized
-        controllersBookings->client --:error {success: false, message: 'Not authorized'}
-    else authorized
-        controllersBookings->controllersBookings:check if slot changed
-        alt slot changed
-            controllersBookings->modelDentist ++:findById(newDentistId)
-            modelDentist ->DentistsDatabase ++: find new dentist
-            DentistsDatabase --> modelDentist --: newDentist
-            controllersBookings <-- modelDentist --:newDentist
-            
-            controllersBookings->controllersBookings:check new slot availability
-            alt new slot not available
-                controllersBookings->client --:error {success: false, message: 'The requested time slot is not available'}
-            else new slot available
-                controllersBookings->modelDentist ++:findById(booking.dentist)
-                modelDentist ->DentistsDatabase ++: find old dentist
-                DentistsDatabase --> modelDentist --: oldDentist
-                controllersBookings <-- modelDentist --:oldDentist
-                
-                controllersBookings->modelDentist ++:findOneAndUpdate(..., {$set: {'availableSlots.$.isBooked': false}})
-                modelDentist ->DentistsDatabase ++: release old slot
-                DentistsDatabase --> modelDentist --: updated
-                controllersBookings <-- modelDentist --:updated
-                
-                controllersBookings->modelDentist ++:findOneAndUpdate(..., {$set: {'availableSlots.$.isBooked': true}})
-                modelDentist ->DentistsDatabase ++: book new slot
-                DentistsDatabase --> modelDentist --: updated
-                controllersBookings <-- modelDentist --:updated
-                
-                controllersBookings->modelBooking ++:findByIdAndUpdate(req.params.id, req.body)
-                modelBooking ->BookingsDatabase ++: update booking
-                BookingsDatabase --> modelBooking --: booking
-                controllersBookings <-- modelBooking --:booking
-                
-                controllersBookings->client --:response {success: true, data: booking}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> controllersBookings ++:next() -> updateBooking()
+
+    controllersBookings->modelBooking ++:Booking.findById(req.params.id)
+    modelBooking->BookingsDB ++: findById()
+    BookingsDB-->modelBooking --: booking or null
+    controllersBookings<--modelBooking --:booking
+
+    alt Booking not found
+        controllersBookings->client --:res.status(404).json({success:false,\nmessage:'Booking not found with id of ...'})
+    else Booking found
+        alt Not owner and not admin
+            controllersBookings->client --:res.status(403).json({success:false,\nmessage:'Not authorized to update this booking'})
+        else Owner or admin
+            controllersBookings->controllersBookings :Check if dentist/date/time changed
+
+            opt Dentist, date, or time changed
+                controllersBookings->modelDentist ++:Dentist.findById(newDentistId)
+                modelDentist->DentistsDB ++: findById()
+                DentistsDB-->modelDentist --: newDentist or null
+                controllersBookings<--modelDentist --:newDentist
+
+                alt New dentist not found
+                    controllersBookings->client --:res.status(404).json({success:false,\nmessage:'Dentist not found'})
+                else New dentist found
+                    controllersBookings->controllersBookings :Check new slot availability\n(date, startTime, endTime, !isBooked)
+
+                    alt New slot not available
+                        controllersBookings->client --:res.status(400).json({success:false,\nmessage:'The requested time slot is not available'})
+                    else New slot available
+                        controllersBookings->modelDentist ++:Release old slot: isBooked=false
+                        modelDentist->DentistsDB ++: update old slot
+                        DentistsDB-->modelDentist --: updated
+                        controllersBookings<--modelDentist --:updated
+
+                        controllersBookings->modelDentist ++:Book new slot: isBooked=true
+                        modelDentist->DentistsDB ++: update new slot
+                        DentistsDB-->modelDentist --: updated
+                        controllersBookings<--modelDentist --:updated
+                    end
+                end
             end
-        else slot not changed
-            controllersBookings->modelBooking ++:findByIdAndUpdate(req.params.id, req.body)
-            modelBooking ->BookingsDatabase ++: update booking
-            BookingsDatabase --> modelBooking --: booking
-            controllersBookings <-- modelBooking --:booking
-            
-            controllersBookings->client --:response {success: true, data: booking}
+
+            controllersBookings->modelBooking ++:Booking.findByIdAndUpdate(id,body)
+            modelBooking->BookingsDB ++: findByIdAndUpdate()
+            BookingsDB-->modelBooking --: updated booking
+            controllersBookings<--modelBooking --:booking
+
+            controllersBookings->client --:res.status(200).json({success:true,data:booking})
         end
     end
 end

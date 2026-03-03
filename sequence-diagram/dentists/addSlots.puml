@@ -1,34 +1,56 @@
-@startuml Add Available Slots (POST)
+@startuml Add Slots (POST)
 
-header Dentist Booking System - Dentists
+header RealHaus Sequence Diagram - Dentists Controller
 footer Page %page% of %lastpage%
-title "Add Available Slots (POST) - Admin Only"
+title "Add Slots (POST /api/v1/dentists/:id/slots) - Admin Only"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
 participant "<<router>>\n:dentists" as routerDentists
+participant "<<middleware>>\n:auth" as middlewareAuth
 participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:User" as modelUser
 participant "<<model>>\n:Dentist" as modelDentist
-database "<<MongoDB>>\n:dentists" as DentistsDatabase
+database "<<MongoDB>>\n:users" as UsersDB
+database "<<MongoDB>>\n:dentists" as DentistsDB
 
 client->server ++:req.post('/api/v1/dentists/:id/slots')
 server->routerDentists ++:app.use('/api/v1/dentists',dentists)
-routerDentists -> controllersDentists ++:addSlots()
-controllersDentists->modelDentist ++:findById(req.params.id)
-modelDentist ->DentistsDatabase ++: find dentist
-DentistsDatabase --> modelDentist --: dentist
-controllersDentists <-- modelDentist --:dentist
+routerDentists -> middlewareAuth ++:protect()
 
-alt dentist not found
-    controllersDentists->client --:error {success: false, message: 'Dentist not found'}
-else dentist found
-    controllersDentists->controllersDentists:push new slots to availableSlots
-    controllersDentists->modelDentist ++:save()
-    modelDentist ->DentistsDatabase ++: update dentist
-    DentistsDatabase --> modelDentist --: dentist
-    controllersDentists <-- modelDentist --:dentist
-    
-    controllersDentists->client --:response {success: true, data: dentist}
+alt No token or token is null
+    middlewareAuth->client --:res.status(401).json({success:false,\nmessage:'Not authorize to access this route'})
+else Valid token
+    middlewareAuth->middlewareAuth :jwt.verify(token,JWT_SECRET)
+    middlewareAuth->modelUser ++:User.findById(decoded.id)
+    modelUser->UsersDB ++: findById()
+    UsersDB-->modelUser --: user
+    middlewareAuth<--modelUser --:req.user = user
+    middlewareAuth -> middlewareAuth :authorize('admin')
+
+    alt User role is not admin
+        middlewareAuth->client --:res.status(403).json({success:false,\nmessage:'User role is not authorized to access this route'})
+    else User is admin
+        middlewareAuth -> controllersDentists ++:next() -> addSlots()
+
+        controllersDentists->modelDentist ++:Dentist.findById(req.params.id)
+        modelDentist->DentistsDB ++: findById()
+        DentistsDB-->modelDentist --: dentist or null
+        controllersDentists<--modelDentist --:dentist
+
+        alt Dentist not found
+            controllersDentists->client --:res.status(404).json({success:false,\nmessage:'Dentist not found with id of ...'})
+        else Dentist found
+            controllersDentists->controllersDentists :Push new slots to\ndentist.availableSlots array
+
+            controllersDentists->modelDentist ++:dentist.save()
+            modelDentist->DentistsDB ++: save()
+            DentistsDB-->modelDentist --: saved
+            controllersDentists<--modelDentist --:dentist
+
+            controllersDentists->client --:res.status(200).json({success:true,data:dentist})
+        end
+    end
 end
 
 @enduml

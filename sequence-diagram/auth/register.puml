@@ -1,8 +1,8 @@
-@startuml Register User (POST)
+@startuml Register (POST)
 
-header Dentist Booking System - Auth
+header RealHaus Sequence Diagram - Auth Controller
 footer Page %page% of %lastpage%
-title "Register User (POST)"
+title "Register (POST /api/v1/auth/register)"
 
 participant "Client" as client
 participant "<<javaScript>>\n:server" as server
@@ -14,11 +14,18 @@ database "<<MongoDB>>\n:users" as UsersDatabase
 client->server ++:req.post('/api/v1/auth/register')
 server->routerAuth ++:app.use('/api/v1/auth',auth)
 routerAuth -> controllersAuth ++:register()
-controllersAuth->modelUser ++:create({name, email, phone, password, role})
+controllersAuth->modelUser ++:User.create({name,email,phone,password,role})
 modelUser ->UsersDatabase ++: UserSchema
-UsersDatabase --> modelUser --: user
-controllersAuth <-- modelUser --:user
-controllersAuth->controllersAuth:getSignedJwtToken()
-controllersAuth->client --:response {success, token}
+
+alt Success
+    UsersDatabase --> modelUser --: user
+    controllersAuth <-- modelUser --:user
+    controllersAuth->controllersAuth :user.getSignedJwtToken()
+    controllersAuth->client --:res.status(200).cookie('token',token).json({success:true,token})
+else Validation/Duplicate Error
+    UsersDatabase --> modelUser --: Error
+    controllersAuth <-- modelUser --:Error thrown
+    controllersAuth->client --:res.status(400).json({success:false})
+end
 
 @enduml

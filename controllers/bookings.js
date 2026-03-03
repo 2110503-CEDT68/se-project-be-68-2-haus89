@@ -1,5 +1,4 @@
 const Booking = require('../models/Booking');
-const User = require('../models/User');
 const Dentist = require('../models/Dentist');
 
 // @desc    Create new booking
@@ -52,9 +51,6 @@ exports.createBooking = async (req, res, next) => {
 
         // Create booking
         const booking = await Booking.create(req.body);
-
-        // Update user's booking reference
-        await User.findByIdAndUpdate(req.user.id, { booking: booking._id });
 
         // Update dentist's availableSlots to mark the slot as booked
         await Dentist.findOneAndUpdate(
@@ -313,9 +309,6 @@ exports.deleteBooking = async (req, res, next) => {
                 message: 'Not authorized to delete this booking'
             });
         }
-
-        // Remove booking reference from user
-        await User.findByIdAndUpdate(booking.user, { booking: null });
 
         // Update dentist's availableSlots to mark the slot as available again
         const bookingDate = new Date(booking.date);
