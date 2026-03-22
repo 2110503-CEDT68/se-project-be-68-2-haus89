@@ -46,6 +46,9 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+//Enable CORS
+app.use(cors());
+
 //Body parser
 app.use(express.json());
 
@@ -85,16 +88,13 @@ const authLimiter = rateLimit({
   },
 });
 
-app.use(generalLimiter);
-app.use("/api/v1/auth", authLimiter);
+//app.use(generalLimiter);
+//app.use("/api/v1/auth", authLimiter);
 
 //---------------------------------------------------------
 
 //Prevent http param pollution
 app.use(hpp());
-
-//Enable CORS
-app.use(cors());
 
 app.use("/api/v1/dentists", dentists);
 app.use("/api/v1/auth", auth);
