@@ -8,6 +8,7 @@ const { xss } = require("express-xss-sanitizer");
 const rateLimit = require("express-rate-limit");
 const hpp = require("hpp");
 const cors = require("cors");
+const morgan = require("morgan");
 const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 
@@ -49,6 +50,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 //Enable CORS
 app.use(cors());
+
+//Request logging
+app.use(morgan("dev"));
 
 //Body parser
 app.use(express.json());
