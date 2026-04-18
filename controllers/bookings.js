@@ -324,7 +324,7 @@ exports.deleteBooking = async (req, res, next) => {
         });
 
         if (slot) {
-            await Dentist.findOneAndUpdate(
+            await User.findOneAndUpdate(
                 {
                     _id: booking.dentist,
                     'availableSlots._id': slot._id
