@@ -75,3 +75,39 @@ exports.getRecord = async (req, res, next) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// @desc    Update record
+// @route   PUT /api/v1/records/:id
+// @access  Private (Admin/Dentist)
+exports.updateRecord = async (req, res, next) => {
+  try {
+    let record = await Record.findById(req.params.id);
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: `No record found with the id of ${req.params.id}`,
+      });
+    }
+
+    // authorize roles (only admin and dentist)
+    if (req.user.role !== "admin" && req.user.role !== "dentist") {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized to update this record",
+      });
+    }
+
+    record = await Record.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: record,
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
