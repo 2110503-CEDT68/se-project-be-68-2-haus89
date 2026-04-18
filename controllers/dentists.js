@@ -69,7 +69,36 @@ exports.getDentist = async (req, res, next) => {
             });
         }
 
-        res.status(200).json({ success: true, data: dentist });
+        const bookings = await Booking.find({ dentist: req.params.id });
+
+        const slotsWithBooking = dentist.availableSlots.map(slot => {
+            const slotObj = slot.toObject();
+            if (slot.isBooked) {
+                const slotDate = new Date(slot.date);
+                slotDate.setHours(0, 0, 0, 0);
+
+                const matched = bookings.find(b => {
+                    const bDate = new Date(b.date);
+                    bDate.setHours(0, 0, 0, 0);
+                    return (
+                        bDate.getTime() === slotDate.getTime() &&
+                        b.startTime === slot.startTime &&
+                        b.endTime === slot.endTime
+                    );
+                });
+
+                if (matched) {
+                    slotObj.bookedBy = matched.user.toString();
+                    slotObj.bookingId = matched._id.toString();
+                }
+            }
+            return slotObj;
+        });
+
+        const dentistObj = dentist.toObject();
+        dentistObj.availableSlots = slotsWithBooking;
+
+        res.status(200).json({ success: true, data: dentistObj });
     } catch (err) {
         res.status(400).json({ success: false, message: err.message });
     }
