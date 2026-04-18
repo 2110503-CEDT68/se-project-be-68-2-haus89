@@ -1,13 +1,21 @@
 const express = require("express");
-const { getRecords, getRecord, updateRecord } = require("../controllers/records");
+const {
+  createRecords,
+  getRecords,
+  getRecord,
+  updateRecord,
+} = require("../controllers/records");
 const { protect, authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.route("/")
+router
+  .route("/")
+  .post(protect, authorize("admin"), createRecords)
   .get(protect, getRecords);
 
-router.route("/:id")
+router
+  .route("/:id")
   .get(protect, getRecord)
   .put(protect, authorize("admin", "dentist"), updateRecord);
 
