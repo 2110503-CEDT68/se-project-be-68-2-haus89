@@ -23,6 +23,7 @@ const auth = require("./routes/auth");
 const bookings = require("./routes/bookings");
 const users = require("./routes/users");
 const app = express();
+const records = require("./routes/records");
 
 //Swagger options
 const swaggerOptions = {
@@ -100,7 +101,7 @@ app.use("/api/v1/dentists", dentists);
 app.use("/api/v1/auth", auth);
 app.use("/api/v1/bookings", bookings);
 app.use("/api/v1/users", users);
-
+app.use("/api/v1/records", records);
 app.set("query parser", "extended");
 
 const PORT = process.env.PORT || 5003;
