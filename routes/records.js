@@ -12,7 +12,7 @@ const router = express.Router();
 
 router
   .route("/")
-  .post(protect, authorize("admin"), createRecords)
+  .post(protect, authorize("admin", "dentist"), createRecords)
   .get(protect, getRecords);
 
 router
