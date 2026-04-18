@@ -1,6 +1,5 @@
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const Dentist = require('../models/Dentist');
 
 // @desc    Get all users
 // @route   GET /api/v1/users
@@ -102,7 +101,7 @@ exports.deleteUser = async (req, res, next) => {
             const bookingDate = new Date(booking.date);
             bookingDate.setHours(0, 0, 0, 0);
             
-            await Dentist.findOneAndUpdate(
+            await User.findOneAndUpdate(
                 {
                     _id: booking.dentist,
                     'availableSlots.date': {
