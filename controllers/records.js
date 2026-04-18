@@ -198,3 +198,39 @@ exports.updateRecord = async (req, res, next) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// @desc    Delete record
+// @route   DELETE /api/v1/records/:id
+// @access  Private (Admin/Dentist)
+exports.deleteRecord = async (req, res, next) => {
+  try {
+    const record = await Record.findById(req.params.id);
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: `No record found with the id of ${req.params.id}`,
+      });
+    }
+
+    const isAdmin = req.user.role === "admin";
+    const isOwnerDentist =
+      req.user.role === "dentist" && record.dentist.toString() === req.user.id;
+
+    if (!isAdmin && !isOwnerDentist) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized to delete this record",
+      });
+    }
+
+    await Record.deleteOne({ _id: req.params.id });
+
+    res.status(200).json({
+      success: true,
+      data: {},
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};

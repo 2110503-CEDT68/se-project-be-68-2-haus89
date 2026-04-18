@@ -4,6 +4,7 @@ const {
   getRecords,
   getRecord,
   updateRecord,
+  deleteRecord,
 } = require("../controllers/records");
 const { protect, authorize } = require("../middleware/auth");
 
@@ -17,6 +18,7 @@ router
 router
   .route("/:id")
   .get(protect, getRecord)
-  .put(protect, authorize("admin", "dentist"), updateRecord);
+  .put(protect, authorize("admin", "dentist"), updateRecord)
+  .delete(protect, authorize("admin", "dentist"), deleteRecord);
 
 module.exports = router;
