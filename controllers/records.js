@@ -9,21 +9,21 @@ exports.getRecords = async (req, res, next) => {
 
     if (req.user.role === "admin") {
       query = Record.find();
-    } 
-    else if (req.user.role === "user") {
+    } else if (req.user.role === "user") {
       query = Record.find({ patient: req.user.id });
-    }
-    else if (req.user.role === "dentist") {
+    } else if (req.user.role === "dentist") {
       query = Record.find({ dentist: req.user.id });
     }
 
-    const records = await query.populate({
-      path: "patient",
-      select: "name email",
-    }).populate({
-      path: "dentist",
-      select: "name",
-    });
+    const records = await query
+      .populate({
+        path: "patient",
+        select: "name email",
+      })
+      .populate({
+        path: "dentist",
+        select: "name",
+      });
 
     res.status(200).json({
       success: true,
@@ -40,18 +40,20 @@ exports.getRecords = async (req, res, next) => {
 // @access  Private
 exports.getRecord = async (req, res, next) => {
   try {
-    const record = await Record.findById(req.params.id).populate({
-      path: "patient",
-      select: "name email",
-    }).populate({
-      path: "dentist",
-      select: "name",
-    });
+    const record = await Record.findById(req.params.id)
+      .populate({
+        path: "patient",
+        select: "name email",
+      })
+      .populate({
+        path: "dentist",
+        select: "name",
+      });
 
     if (!record) {
-      return res.status(404).json({ 
-        success: false, 
-        message: `No record found with the id of ${req.params.id}` 
+      return res.status(404).json({
+        success: false,
+        message: `No record found with the id of ${req.params.id}`,
       });
     }
 
@@ -61,9 +63,9 @@ exports.getRecord = async (req, res, next) => {
       record.patient._id.toString() !== req.user.id &&
       record.dentist._id.toString() !== req.user.id
     ) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Not authorized to access this record" 
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized to access this record",
       });
     }
 
@@ -106,6 +108,42 @@ exports.updateRecord = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: record,
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// @desc    Delete record
+// @route   DELETE /api/v1/records/:id
+// @access  Private (Admin/Dentist)
+exports.deleteRecord = async (req, res, next) => {
+  try {
+    const record = await Record.findById(req.params.id);
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: `No record found with the id of ${req.params.id}`,
+      });
+    }
+
+    const isAdmin = req.user.role === "admin";
+    const isOwnerDentist =
+      req.user.role === "dentist" && record.dentist.toString() === req.user.id;
+
+    if (!isAdmin && !isOwnerDentist) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized to delete this record",
+      });
+    }
+
+    await Record.deleteOne({ _id: req.params.id });
+
+    res.status(200).json({
+      success: true,
+      data: {},
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
