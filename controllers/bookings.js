@@ -1,5 +1,5 @@
 const Booking = require('../models/Booking');
-const Dentist = require('../models/Dentist');
+const User = require('../models/User');
 
 // @desc    Create new booking
 // @route   POST /api/v1/bookings
@@ -20,7 +20,7 @@ exports.createBooking = async (req, res, next) => {
         req.body.user = req.user.id;
 
         // Verify dentist exists
-        const dentist = await Dentist.findById(req.body.dentist);
+        const dentist = await User.findOne({ _id: req.body.dentist, role: 'dentist' });
 
         if (!dentist) {
             return res.status(404).json({
@@ -53,7 +53,7 @@ exports.createBooking = async (req, res, next) => {
         const booking = await Booking.create(req.body);
 
         // Update dentist's availableSlots to mark the slot as booked
-        await Dentist.findOneAndUpdate(
+        await User.findOneAndUpdate(
             {
                 _id: req.body.dentist,
                 'availableSlots._id': availableSlot._id
@@ -205,7 +205,7 @@ exports.updateBooking = async (req, res, next) => {
             const newEndTime = req.body.endTime || booking.endTime;
 
             // Verify new dentist exists
-            const newDentist = await Dentist.findById(newDentistId);
+            const newDentist = await User.findOne({ _id: newDentistId, role: 'dentist' });
             if (!newDentist) {
                 return res.status(404).json({
                     success: false,
@@ -237,7 +237,7 @@ exports.updateBooking = async (req, res, next) => {
             const oldBookingDate = new Date(booking.date);
             oldBookingDate.setHours(0, 0, 0, 0);
             
-            const oldDentist = await Dentist.findById(booking.dentist);
+            const oldDentist = await User.findById(booking.dentist);
             const oldSlot = oldDentist.availableSlots.find(slot => {
                 const slotDate = new Date(slot.date);
                 slotDate.setHours(0, 0, 0, 0);
@@ -247,7 +247,7 @@ exports.updateBooking = async (req, res, next) => {
             });
 
             if (oldSlot) {
-                await Dentist.findOneAndUpdate(
+                await User.findOneAndUpdate(
                     {
                         _id: booking.dentist,
                         'availableSlots._id': oldSlot._id
@@ -314,7 +314,7 @@ exports.deleteBooking = async (req, res, next) => {
         const bookingDate = new Date(booking.date);
         bookingDate.setHours(0, 0, 0, 0);
         
-        const dentist = await Dentist.findById(booking.dentist);
+        const dentist = await User.findById(booking.dentist);
         const slot = dentist.availableSlots.find(slot => {
             const slotDate = new Date(slot.date);
             slotDate.setHours(0, 0, 0, 0);
@@ -355,7 +355,7 @@ exports.deleteBooking = async (req, res, next) => {
 // @access  Public
 exports.checkAvailability = async (req, res, next) => {
     try {
-        const dentist = await Dentist.findById(req.params.id);
+        const dentist = await User.findOne({ _id: req.params.id, role: 'dentist' });
 
         if (!dentist) {
             return res.status(404).json({
@@ -365,7 +365,7 @@ exports.checkAvailability = async (req, res, next) => {
         }
 
         // Get available slots (not booked)
-        const availableSlots = dentist.availableSlots.filter(slot => !slot.isBooked);
+        const availableSlots = (dentist.availableSlots || []).filter(slot => !slot.isBooked);
 
         res.status(200).json({
             success: true,

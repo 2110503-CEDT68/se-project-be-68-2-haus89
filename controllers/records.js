@@ -1,6 +1,5 @@
 const Record = require("../models/Record");
 const User = require("../models/User");
-const Dentist = require("../models/Dentist");
 const Booking = require("../models/Booking");
 
 // @desc    Create record
@@ -34,7 +33,7 @@ exports.createRecords = async (req, res, next) => {
 
     const [patientUser, dentistDoc] = await Promise.all([
       User.findOne({ _id: patient, role: "user" }),
-      Dentist.findById(dentist),
+      User.findOne({ _id: dentist, role: "dentist" }),
     ]);
 
     if (!patientUser) {

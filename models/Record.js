@@ -68,7 +68,7 @@ const recordSchema = new mongoose.Schema(
     },
     dentist: {
       type: mongoose.Schema.ObjectId,
-      ref: "Dentist",
+      ref: "User",
       required: [true, "Dentist is required"],
     },
     booking: {

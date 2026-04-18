@@ -24,14 +24,13 @@ router
 router
   .route("/:id")
   .get(getDentist)
-  .put(protect, authorize("admin"), updateDentist)
+  .put(protect, authorize("admin", "dentist"), updateDentist)
   .delete(protect, authorize("admin"), deleteDentist);
 
-// --- Admin Only (Slots Management) ---
 // POST /api/v1/dentists/:id/slots (Add slots)
-router.post("/:id/slots", protect, authorize("admin"), addSlots);
+router.post("/:id/slots", protect, authorize("admin", "dentist"), addSlots);
 
 // DELETE /api/v1/dentists/:id/slots/:slotId (Delete slot)
-router.delete("/:id/slots/:slotId", protect, authorize("admin"), deleteSlot);
+router.delete("/:id/slots/:slotId", protect, authorize("admin", "dentist"), deleteSlot);
 
 module.exports = router;
