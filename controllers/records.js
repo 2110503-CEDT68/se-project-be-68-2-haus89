@@ -19,6 +19,13 @@ exports.createRecords = async (req, res, next) => {
       dentistNote,
     } = req.body;
 
+    if (req.user.role === "dentist" && dentist?.toString() !== req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Dentists can only create records for themselves",
+      });
+    }
+
     const recordData = {
       patient,
       dentist,
@@ -176,11 +183,24 @@ exports.updateRecord = async (req, res, next) => {
       });
     }
 
-    // authorize roles (only admin and dentist)
-    if (req.user.role !== "admin" && req.user.role !== "dentist") {
+    if (
+      req.user.role === "dentist" &&
+      record.dentist.toString() !== req.user.id
+    ) {
       return res.status(401).json({
         success: false,
-        message: "Not authorized to update this record",
+        message: "Dentists can only update their own records",
+      });
+    }
+
+    if (
+      req.user.role === "dentist" &&
+      req.body.dentist &&
+      req.body.dentist.toString() !== req.user.id
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Dentists cannot reassign records to another dentist",
       });
     }
 
