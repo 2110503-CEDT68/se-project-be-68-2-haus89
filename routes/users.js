@@ -26,15 +26,15 @@ router.put("/me/password", protect, changePassword);
 
 // --- Admin Only Routes ---
 // @route   GET /api/v1/users
-router.get("/", protect, authorize("admin"), getUsers);
+router.get("/", protect, authorize("admin", "dentist"), getUsers);
 
 // @route   GET /api/v1/users/:id
 // @route   PUT /api/v1/users/:id
 // @route   DELETE /api/v1/users/:id
 router
   .route("/:id")
-  .get(protect, authorize("admin"), getUser)
-  .put(protect, authorize("admin"), updateUser)
-  .delete(protect, authorize("admin"), deleteUser);
+  .get(protect, authorize("admin", "dentist"), getUser)
+  .put(protect, authorize("admin", "dentist"), updateUser)
+  .delete(protect, authorize("admin", "dentist"), deleteUser);
 
 module.exports = router;

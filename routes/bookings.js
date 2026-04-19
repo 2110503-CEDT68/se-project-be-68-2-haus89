@@ -29,7 +29,7 @@ router.get("/me", protect, getMyBooking);
 // DELETE /api/v1/bookings/:id
 router
   .route("/:id")
-  .get(protect, getBooking)
+  .get(protect, authorize("admin", "dentist"), getBooking)
   .put(protect, updateBooking)
   .delete(protect, deleteBooking);
 
