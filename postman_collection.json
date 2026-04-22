@@ -1,0 +1,509 @@
+{
+  "info": {
+    "name": "Dentist Appointment API",
+    "description": "API for managing dentist appointments, schedules, and user bookings",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5003/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"user\",\n  \"phone\": \"0123456789\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "r egister"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dentists",
+      "item": [
+        {
+          "name": "Get All Dentists",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dentists",
+              "host": ["{{base_url}}"],
+              "path": ["dentists"]
+            }
+          }
+        },
+        {
+          "name": "Create Dentist",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Smith\",\n  \"yearsOfExperience\": 5,\n  \"areaOfExpertise\": \"Orthodontics\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/dentists",
+              "host": ["{{base_url}}"],
+              "path": ["dentists"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Dentist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dentists/:id",
+              "host": ["{{base_url}}"],
+              "path": ["dentists", ":id"],
+              "variable": [ { "key": "id", "value": "dentist_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Update Dentist",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"yearsOfExperience\": 6\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/dentists/:id",
+              "host": ["{{base_url}}"],
+              "path": ["dentists", ":id"],
+              "variable": [ { "key": "id", "value": "dentist_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Delete Dentist",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dentists/:id",
+              "host": ["{{base_url}}"],
+              "path": ["dentists", ":id"],
+              "variable": [ { "key": "id", "value": "dentist_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Add Slots to Dentist",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2024-12-01\",\n  \"startTime\": \"09:00:00\",\n  \"endTime\": \"10:00:00\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/dentists/:id/slots",
+              "host": ["{{base_url}}"],
+              "path": ["dentists", ":id", "slots"],
+              "variable": [ { "key": "id", "value": "dentist_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Delete Slot",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dentists/:id/slots/:slotId",
+              "host": ["{{base_url}}"],
+              "path": ["dentists", ":id", "slots", ":slotId"],
+              "variable": [
+                { "key": "id", "value": "dentist_id_here" },
+                { "key": "slotId", "value": "slot_id_here" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Get All Bookings (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["bookings"]
+            }
+          }
+        },
+        {
+          "name": "Get My Bookings",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/me",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", "me"]
+            }
+          }
+        },
+        {
+          "name": "Check Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/dentist/:id/availability",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", "dentist", ":id", "availability"],
+              "variable": [ { "key": "id", "value": "dentist_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Create Booking",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dentist\": \"dentist_id_here\",\n  \"bookingDate\": \"2024-12-01T09:00:00Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["bookings"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Booking",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/:id",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", ":id"],
+              "variable": [ { "key": "id", "value": "booking_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Update Booking",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingDate\": \"2024-12-01T10:00:00Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/bookings/:id",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", ":id"],
+              "variable": [ { "key": "id", "value": "booking_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Delete Booking",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/:id",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", ":id"],
+              "variable": [ { "key": "id", "value": "booking_id_here" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Records",
+      "item": [
+        {
+          "name": "Get All Records",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/records",
+              "host": ["{{base_url}}"],
+              "path": ["records"]
+            }
+          }
+        },
+        {
+          "name": "Create Record",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": \"user_id_here\",\n  \"dentist\": \"dentist_id_here\",\n  \"description\": \"Regular checkup\",\n  \"treatment\": \"Scaling and polishing\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/records",
+              "host": ["{{base_url}}"],
+              "path": ["records"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Record",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/records/:id",
+              "host": ["{{base_url}}"],
+              "path": ["records", ":id"],
+              "variable": [ { "key": "id", "value": "record_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Update Record",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated treatment instructions\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/records/:id",
+              "host": ["{{base_url}}"],
+              "path": ["records", ":id"],
+              "variable": [ { "key": "id", "value": "record_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Delete Record",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/records/:id",
+              "host": ["{{base_url}}"],
+              "path": ["records", ":id"],
+              "variable": [ { "key": "id", "value": "record_id_here" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/me/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Name\",\n  \"phone\": \"0987654321\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Change My Password",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me/password",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me", "password"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Get Single User (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["users", ":id"],
+              "variable": [ { "key": "id", "value": "user_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Update User (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["users", ":id"],
+              "variable": [ { "key": "id", "value": "user_id_here" } ]
+            }
+          }
+        },
+        {
+          "name": "Delete User (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["users", ":id"],
+              "variable": [ { "key": "id", "value": "user_id_here" } ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
