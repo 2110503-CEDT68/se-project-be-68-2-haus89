@@ -166,3 +166,47 @@ exports.getReview = async (req, res, next) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// @desc    Delete a review
+// @route   DELETE /api/v1/reviews/:id
+// @access  Private (patient, owner only)
+exports.deleteReview = async (req, res, next) => {
+  try {
+    // 1. ตรวจสอบว่า ID ที่ส่งมาเป็น ObjectId ที่ถูกต้องหรือไม่
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid review id: ${req.params.id}`,
+      });
+    }
+
+    const review = await Review.findById(req.params.id);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: `No review found with the id of ${req.params.id}`,
+      });
+    }
+
+    if (review.user.toString() !== req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized to delete this review",
+      });
+    }
+
+    await review.deleteOne();
+
+    res.status(200).json({ 
+        success: true, 
+        data: {} 
+    });
+
+  } catch (err) {
+    res.status(500).json({ 
+        success: false, 
+        message: err.message 
+    });
+  }
+};

@@ -3,6 +3,7 @@ const {
   getReviews,
   getDentistReviews,
   getReview,
+  deleteReview,
 } = require("../controllers/reviews");
 const { protect, authorize } = require("../middleware/auth");
 
@@ -13,6 +14,8 @@ router.use(protect, authorize("user"));
 
 router.get("/", getReviews);
 router.get("/dentist/:dentistId", getDentistReviews);
-router.get("/:id", getReview);
+router.get("/:id", getReview)
+
+router.delete("/:id", deleteReview);
 
 module.exports = router;
