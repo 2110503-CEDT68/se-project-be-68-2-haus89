@@ -1,44 +1,93 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Record = require('../models/Record');
+
+// Pipeline stages that enrich a dentist document with averageRating,
+// totalReviews, and availableSlotCount. Prepend a $match upstream.
+const dentistEnrichmentStages = [
+    {
+        $lookup: {
+            from: 'reviews',
+            localField: '_id',
+            foreignField: 'dentist',
+            as: '__reviews',
+        },
+    },
+    {
+        $addFields: {
+            averageRating: {
+                $cond: [
+                    { $gt: [{ $size: '$__reviews' }, 0] },
+                    { $round: [{ $avg: '$__reviews.rating' }, 1] },
+                    0,
+                ],
+            },
+            totalReviews: { $size: '$__reviews' },
+            availableSlotCount: {
+                $size: {
+                    $filter: {
+                        input: { $ifNull: ['$availableSlots', []] },
+                        as: 'slot',
+                        cond: { $eq: ['$$slot.isBooked', false] },
+                    },
+                },
+            },
+        },
+    },
+    { $project: { __reviews: 0, password: 0 } },
+];
 
 // @desc    Get all dentists
 // @route   GET /api/v1/dentists
 // @access  Public
 exports.getDentists = async (req, res, next) => {
-    let query;
-
-    const reqQuery = { ...req.query };
-    const removeFields = ['select', 'sort', 'page', 'limit'];
-    removeFields.forEach(param => delete reqQuery[param]);
-
-    let queryStr = JSON.stringify(reqQuery);
-    queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
-
-    query = User.find({ ...JSON.parse(queryStr), role: 'dentist' });
-
-    if (req.query.select) {
-        const fields = req.query.select.split(',').join(' ');
-        query = query.select(fields);
-    }
-
-    if (req.query.sort) {
-        const sortBy = req.query.sort.split(',').join(' ');
-        query = query.sort(sortBy);
-    } else {
-        query = query.sort('-createdAt');
-    }
-
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 25;
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-
     try {
-        const total = await User.countDocuments({ role: 'dentist' });
-        query = query.skip(startIndex).limit(limit);
+        const reqQuery = { ...req.query };
+        const removeFields = ['select', 'sort', 'page', 'limit'];
+        removeFields.forEach(param => delete reqQuery[param]);
 
-        const dentists = await query;
+        let queryStr = JSON.stringify(reqQuery);
+        queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
+        const match = { ...JSON.parse(queryStr), role: 'dentist' };
+
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 25;
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+
+        const sortStage = {};
+        if (req.query.sort) {
+            req.query.sort.split(',').forEach(f => {
+                if (f.startsWith('-')) sortStage[f.slice(1)] = -1;
+                else sortStage[f] = 1;
+            });
+        } else {
+            sortStage.createdAt = -1;
+        }
+
+        const basePipeline = [
+            { $match: match },
+            ...dentistEnrichmentStages,
+        ];
+
+        const dataPipeline = [
+            ...basePipeline,
+            { $sort: sortStage },
+            { $skip: startIndex },
+            { $limit: limit },
+        ];
+
+        if (req.query.select) {
+            const projection = {};
+            req.query.select.split(',').forEach(f => { projection[f] = 1; });
+            dataPipeline.push({ $project: projection });
+        }
+
+        const [dentists, total] = await Promise.all([
+            User.aggregate(dataPipeline),
+            User.countDocuments(match),
+        ]);
 
         const pagination = {};
         if (endIndex < total) pagination.next = { page: page + 1, limit };
@@ -48,7 +97,7 @@ exports.getDentists = async (req, res, next) => {
             success: true,
             count: dentists.length,
             pagination,
-            data: dentists
+            data: dentists,
         });
     } catch (err) {
         res.status(400).json({ success: false, message: err.message });
@@ -60,9 +109,21 @@ exports.getDentists = async (req, res, next) => {
 // @access  Public
 exports.getDentist = async (req, res, next) => {
     try {
-        const dentist = await User.findOne({ _id: req.params.id, role: 'dentist' });
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(404).json({
+                success: false,
+                message: `Dentist not found with id of ${req.params.id}`
+            });
+        }
 
-        if (!dentist) {
+        const dentistObjectId = new mongoose.Types.ObjectId(req.params.id);
+
+        const [result] = await User.aggregate([
+            { $match: { _id: dentistObjectId, role: 'dentist' } },
+            ...dentistEnrichmentStages,
+        ]);
+
+        if (!result) {
             return res.status(404).json({
                 success: false,
                 message: `Dentist not found with id of ${req.params.id}`
@@ -71,8 +132,8 @@ exports.getDentist = async (req, res, next) => {
 
         const bookings = await Booking.find({ dentist: req.params.id });
 
-        const slotsWithBooking = dentist.availableSlots.map(slot => {
-            const slotObj = slot.toObject();
+        const slotsWithBooking = (result.availableSlots || []).map(slot => {
+            const slotObj = { ...slot };
             if (slot.isBooked) {
                 const slotDate = new Date(slot.date);
                 slotDate.setHours(0, 0, 0, 0);
@@ -95,10 +156,9 @@ exports.getDentist = async (req, res, next) => {
             return slotObj;
         });
 
-        const dentistObj = dentist.toObject();
-        dentistObj.availableSlots = slotsWithBooking;
+        result.availableSlots = slotsWithBooking;
 
-        res.status(200).json({ success: true, data: dentistObj });
+        res.status(200).json({ success: true, data: result });
     } catch (err) {
         res.status(400).json({ success: false, message: err.message });
     }
