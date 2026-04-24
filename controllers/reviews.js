@@ -95,9 +95,7 @@ exports.getDentistReviews = async (req, res, next) => {
                 },
               },
             ],
-            distribution: [
-              { $group: { _id: "$rating", count: { $sum: 1 } } },
-            ],
+            distribution: [{ $group: { _id: "$rating", count: { $sum: 1 } } }],
           },
         },
       ]),
@@ -198,15 +196,63 @@ exports.deleteReview = async (req, res, next) => {
 
     await review.deleteOne();
 
-    res.status(200).json({ 
-        success: true, 
-        data: {} 
+    res.status(200).json({
+      success: true,
+      data: {},
     });
-
   } catch (err) {
-    res.status(500).json({ 
-        success: false, 
-        message: err.message 
+    res.status(500).json({
+      success: false,
+      message: err.message,
     });
+  }
+};
+
+// @desc    Update reviews
+// @route   PUT /api/v1/reviews/:id
+// @access  Private (patient, owner only)
+exports.updateReview = async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid review id: ${req.params.id}`,
+      });
+    }
+
+    let review = await Review.findById(req.params.id);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: `No review found with the id of ${req.params.id}`,
+      });
+    }
+
+    if (review.user.toString() !== req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized to update this review",
+      });
+    }
+
+    review = await Review.findByIdAndUpdate(
+      req.params.id,
+      {
+        rating: req.body.rating ?? review.rating,
+        review: req.body.review ?? review.review,
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    res.status(200).json({
+      success: true,
+      data: review,
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };
