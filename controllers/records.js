@@ -2,6 +2,14 @@ const Record = require("../models/Record");
 const User = require("../models/User");
 const Booking = require("../models/Booking");
 
+const normalizeFollowUpDate = (followUpDate) => {
+  if (followUpDate === "") {
+    return null;
+  }
+
+  return followUpDate;
+};
+
 // @desc    Create record
 // @route   POST /api/v1/records
 // @access  Private (Admin only)
@@ -34,7 +42,7 @@ exports.createRecords = async (req, res, next) => {
       diagnosis,
       treatments,
       prescriptions,
-      followUpDate,
+      followUpDate: normalizeFollowUpDate(followUpDate),
       dentistNote,
     };
 
@@ -202,6 +210,10 @@ exports.updateRecord = async (req, res, next) => {
         success: false,
         message: "Dentists cannot reassign records to another dentist",
       });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, "followUpDate")) {
+      req.body.followUpDate = normalizeFollowUpDate(req.body.followUpDate);
     }
 
     record = await Record.findByIdAndUpdate(req.params.id, req.body, {

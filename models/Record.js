@@ -1,5 +1,27 @@
 const mongoose = require("mongoose");
 
+const getDateOnly = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (match) {
+      return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
 const treatmentItemSchema = new mongoose.Schema(
   {
     procedureName: {
@@ -96,6 +118,19 @@ const recordSchema = new mongoose.Schema(
     },
     followUpDate: {
       type: Date,
+      validate: {
+        validator: function (value) {
+          if (!value) {
+            return true;
+          }
+
+          const followUpDate = getDateOnly(value);
+          const today = getDateOnly(new Date());
+
+          return Boolean(followUpDate && today && followUpDate >= today);
+        },
+        message: "Follow-up date cannot be in the past",
+      },
     },
     dentistNote: {
       type: String,
