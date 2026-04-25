@@ -256,3 +256,42 @@ exports.updateReview = async (req, res, next) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+// @desc    Add review
+// @route   POST /api/v1/reviews
+// @access  Private (Authenticated Users)
+exports.addReview = async (req, res, next) => {
+  try {
+    const { dentist, rating, review } = req.body;
+
+    // Prevent users from reviewing themselves (especially if they are dentists)
+    if (dentist === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot write a review for yourself",
+      });
+    }
+
+    const dentistUser = await User.findOne({ _id: dentist, role: "dentist" });
+    if (!dentistUser) {
+      return res.status(404).json({
+        success: false,
+        message: `No dentist found with id ${dentist}`,
+      });
+    }
+
+    req.body.user = req.user.id; // Link review to the logged-in user
+
+    const newReview = await Review.create(req.body);
+
+    res.status(201).json({ success: true, data: newReview });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already reviewed this dentist",
+      });
+    }
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
