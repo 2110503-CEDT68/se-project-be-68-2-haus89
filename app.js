@@ -25,9 +25,19 @@ const swaggerOptions = {
     info: {
       title: "Library API",
       version: "1.0.0",
-      description: "API for managing dentist appointments, schedules, and user bookings",
+      description:
+        "API for managing dentist appointments, schedules, and user bookings",
     },
-    servers: [{ url: "http://localhost:5003/api/v1" }],
+    servers: [{ url: "http://localhost:5000/api/v1" }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
   },
   apis: ["./routes/*.js"],
 };
