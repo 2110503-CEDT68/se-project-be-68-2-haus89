@@ -22,6 +22,20 @@
       "item": [
         {
           "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = res.getBody();",
+                  "if (response.success && response.token) {",
+                  "    bru.setVar(\"token\", response.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [],
@@ -33,12 +47,26 @@
             "url": {
               "raw": "{{base_url}}/auth/register",
               "host": ["{{base_url}}"],
-              "path": ["auth", "r egister"]
+              "path": ["auth", "register"]
             }
           }
         },
         {
           "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = res.getBody();",
+                  "if (response.success && response.token) {",
+                  "    bru.setVar(\"token\", response.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [],
