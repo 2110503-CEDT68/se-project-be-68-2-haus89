@@ -18,7 +18,10 @@ const { protect, authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
-// All review endpoints are patient-only (role: user)
+// Public: anyone can view reviews of a specific dentist
+router.get("/dentist/:dentistId", getDentistReviews);
+
+// All other review endpoints are patient-only (role: user)
 router.use(protect, authorize("user"));
 
 /**
@@ -81,7 +84,6 @@ router.post("/", addReview);
  *       200:
  *         description: List of reviews for the dentist
  */
-router.get("/dentist/:dentistId", getDentistReviews);
 
 /**
  * @swagger
