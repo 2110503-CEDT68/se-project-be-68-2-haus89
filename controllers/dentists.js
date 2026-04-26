@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Record = require('../models/Record');
-const { buildQueryFilter } = require('../utils/queryUtils');
+const { buildQueryFilter, buildPagination } = require('../utils/queryUtils');
 
 // Pipeline stages that enrich a dentist document with averageRating,
 // totalReviews, and availableSlotCount. Prepend a $match upstream.
@@ -49,7 +49,6 @@ exports.getDentists = async (req, res, next) => {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 25;
         const startIndex = (page - 1) * limit;
-        const endIndex = page * limit;
 
         const sortStage = {};
         if (req.query.sort) {
@@ -84,14 +83,10 @@ exports.getDentists = async (req, res, next) => {
             User.countDocuments(match),
         ]);
 
-        const pagination = {};
-        if (endIndex < total) pagination.next = { page: page + 1, limit };
-        if (startIndex > 0) pagination.prev = { page: page - 1, limit };
-
         res.status(200).json({
             success: true,
             count: dentists.length,
-            pagination,
+            pagination: buildPagination(page, limit, total),
             data: dentists,
         });
     } catch (err) {
