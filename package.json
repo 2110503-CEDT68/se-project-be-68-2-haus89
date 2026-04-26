@@ -15,14 +15,17 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "test": "jest --runInBand --forceExit",
+    "test": "jest --runInBand --forceExit --coverage",
     "test:watch": "jest --watch --runInBand",
     "dev": "nodemon server.js"
   },
   "jest": {
     "testEnvironment": "node",
     "testMatch": ["**/tests/**/*.test.js"],
-    "testTimeout": 30000
+    "testTimeout": 30000,
+    "collectCoverageFrom": [
+      "utils/queryUtils.js"
+    ]
   },
   "dependencies": {
     "@exortek/express-mongo-sanitize": "^2.0.1",

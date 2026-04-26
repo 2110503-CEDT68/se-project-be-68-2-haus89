@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Record = require('../models/Record');
+const { buildQueryFilter } = require('../utils/queryUtils');
 
 // Pipeline stages that enrich a dentist document with averageRating,
 // totalReviews, and availableSlotCount. Prepend a $match upstream.
@@ -43,13 +44,7 @@ const dentistEnrichmentStages = [
 // @access  Public
 exports.getDentists = async (req, res, next) => {
     try {
-        const reqQuery = { ...req.query };
-        const removeFields = ['select', 'sort', 'page', 'limit'];
-        removeFields.forEach(param => delete reqQuery[param]);
-
-        let queryStr = JSON.stringify(reqQuery);
-        queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
-        const match = { ...JSON.parse(queryStr), role: 'dentist' };
+        const match = buildQueryFilter(req.query, { role: 'dentist' });
 
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 25;

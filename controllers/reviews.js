@@ -1,15 +1,7 @@
 const mongoose = require("mongoose");
 const Review = require("../models/Review");
 const User = require("../models/User");
-
-const buildPagination = (page, limit, total) => {
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-  const pagination = {};
-  if (endIndex < total) pagination.next = { page: page + 1, limit };
-  if (startIndex > 0) pagination.prev = { page: page - 1, limit };
-  return pagination;
-};
+const { buildPagination } = require("../utils/queryUtils");
 
 // @desc    Get all reviews of the logged-in patient
 // @route   GET /api/v1/reviews
