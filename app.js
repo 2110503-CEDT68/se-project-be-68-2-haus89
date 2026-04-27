@@ -1,5 +1,10 @@
 const express = require("express");
+const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
+
+// Load env vars
+dotenv.config({ path: "./config/config.env" });
+
 const expressMongoSanitize = require("@exortek/express-mongo-sanitize");
 const helmet = require("helmet");
 const { xss } = require("express-xss-sanitizer");
@@ -28,7 +33,7 @@ const swaggerOptions = {
       description:
         "API for managing dentist appointments, schedules, and user bookings",
     },
-    servers: [{ url: "http://localhost:5000/api/v1" }],
+    servers: [{ url: process.env.HOST || "http://localhost:5000/api/v1" }],
     components: {
       securitySchemes: {
         bearerAuth: {
